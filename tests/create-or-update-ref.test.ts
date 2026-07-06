@@ -1,58 +1,63 @@
-import nock from 'nock'
+import { describe, test, expect, beforeEach, vi } from 'vitest'
 import createOrUpdateRef from '../src/lib/create-or-update-ref'
-import { generateToolkit } from './helpers'
-import { Toolkit } from 'actions-toolkit'
+import { createMockGithub, generateContext } from './helpers'
+import type { ActionContext } from '../src/context'
 
 describe('create-or-update-ref', () => {
-  let tools: Toolkit
+    let ctx: ActionContext
 
-  beforeEach(() => {
-    tools = generateToolkit()
-  })
+    beforeEach(() => {
+        ctx = generateContext()
+    })
 
-  it('updates the major ref if it already exists', async () => {
-    nock('https://api.github.com')
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv1')
-      .reply(200)
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv1')
-      .reply(200, [{ ref: 'tags/v1' }])
+    test('updates the ref if it already exists', async () => {
+        ctx = generateContext({
+            github: createMockGithub({
+                getRef: vi.fn().mockResolvedValue({ data: { ref: 'refs/tags/v1' } })
+            })
+        })
 
-    await createOrUpdateRef(tools, '123abc', '1')
+        await createOrUpdateRef(ctx, '123abc', 'v1')
 
-    expect(nock.isDone()).toBe(true)
-  })
+        expect(ctx.github.rest.git.updateRef).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ref: 'tags/v1',
+                sha: '123abc',
+                force: true
+            })
+        )
+    })
 
-  it('creates a new major ref if it does not already exist', async () => {
-    let params: any
+    test('creates a new ref if it does not already exist', async () => {
+        await createOrUpdateRef(ctx, '123abc', 'v1')
 
-    nock('https://api.github.com')
-      .post('/repos/JasonEtco/test/git/refs')
-      .reply(200, (_, body) => {
-        params = body
-      })
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv1')
-      .reply(200, [])
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ref: 'refs/tags/v1',
+                sha: '123abc'
+            })
+        )
+    })
 
-    await createOrUpdateRef(tools, '123abc', '1')
+    test('creates a new minor ref if it does not already exist', async () => {
+        await createOrUpdateRef(ctx, '123abc', 'v1.0')
 
-    expect(nock.isDone()).toBe(true)
-    expect(params.ref).toBe('refs/tags/v1')
-  })
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ref: 'refs/tags/v1.0',
+                sha: '123abc'
+            })
+        )
+    })
 
-  it('creates a new minor ref if it does not already exist', async () => {
-    let params: any
+    test('creates the release tag if it does not already exist', async () => {
+        await createOrUpdateRef(ctx, '123abc', 'v1.0.0')
 
-    nock('https://api.github.com')
-      .post('/repos/JasonEtco/test/git/refs')
-      .reply(200, (_, body) => {
-        params = body
-      })
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv1.0')
-      .reply(200, [])
-
-    await createOrUpdateRef(tools, '123abc', '1.0')
-
-    expect(nock.isDone()).toBe(true)
-    expect(params.ref).toBe('refs/tags/v1.0')
-  })
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ref: 'refs/tags/v1.0.0',
+                sha: '123abc'
+            })
+        )
+    })
 })

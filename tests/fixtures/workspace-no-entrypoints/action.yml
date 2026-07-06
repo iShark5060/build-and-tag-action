@@ -1,0 +1,3 @@
+name: Empty Action
+runs:
+  using: node24

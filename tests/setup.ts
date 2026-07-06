@@ -1,37 +1,34 @@
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
-import jsYaml from 'js-yaml'
+import { fileURLToPath } from 'url'
 
-/**
- * Helper that reads the `action.yml` and includes the default values
- * for each input as an environment variable, like the Actions runtime does.
- */
-function getDefaultValues() {
-  const yaml = fs.readFileSync(path.join(__dirname, '../action.yml'), 'utf8')
-  const { inputs } = jsYaml.safeLoad(yaml) as any
-  return Object.keys(inputs).reduce(
-    (sum, key) => ({
-      ...sum,
-      [key]: inputs[key].default
-    }),
-    {}
-  )
-}
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-Object.assign(
-  process.env,
-  {
+const releaseFixture = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'fixtures', 'release.json'), 'utf8')
+)
+
+const eventPath = path.join(os.tmpdir(), `build-and-tag-event-${process.pid}.json`)
+fs.writeFileSync(eventPath, JSON.stringify(releaseFixture))
+
+Object.assign(process.env, {
     GITHUB_ACTION: 'my-action',
     GITHUB_ACTOR: 'JasonEtco',
     GITHUB_EVENT_NAME: 'release',
-    GITHUB_EVENT_PATH: path.join(__dirname, 'fixtures', 'release.json'),
+    GITHUB_EVENT_PATH: eventPath,
     GITHUB_REF: 'master',
     GITHUB_REPOSITORY: 'JasonEtco/test',
     GITHUB_SHA: '123abc',
     GITHUB_TOKEN: '456def',
     GITHUB_WORKFLOW: 'my-workflow',
     GITHUB_WORKSPACE: path.join(__dirname, 'fixtures', 'workspace'),
-    HOME: '?'
-  },
-  getDefaultValues()
-)
+    HOME: '?',
+    INPUT_TAG_NAME: ''
+})
+
+export function resetReleaseFixture() {
+    fs.writeFileSync(eventPath, JSON.stringify(structuredClone(releaseFixture)))
+}
+
+resetReleaseFixture()

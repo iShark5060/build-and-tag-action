@@ -1,114 +1,109 @@
-import nock from 'nock'
-import { Toolkit } from 'actions-toolkit'
+import { describe, test, expect, beforeEach, vi } from 'vitest'
 import buildAndTagAction from '../src/lib'
-import { generateToolkit } from './helpers'
+import { createMockGithub, generateContext } from './helpers'
+import { resetReleaseFixture } from './setup'
+import type { ActionContext } from '../src/context'
 
 describe('build-and-tag-action', () => {
-  let tools: Toolkit
+    let ctx: ActionContext
 
-  beforeEach(() => {
-    nock.cleanAll()
-    tools = generateToolkit()
-    delete process.env.INPUT_SETUP
-    delete process.env.INPUT_TAG_NAME
-  })
+    beforeEach(() => {
+        resetReleaseFixture()
+        process.env.INPUT_TAG_NAME = ''
+        process.env.INPUT_UPDATE_MAJOR_MINOR_TAGS = ''
+        process.env.INPUT_COMMIT_MESSAGE = ''
+        ctx = generateContext()
+    })
 
-  it('updates the ref and updates an existing major ref', async () => {
-    nock('https://api.github.com')
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv1.0.0')
-      .reply(200)
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv1')
-      .reply(200)
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv1.0')
-      .reply(200)
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv1')
-      .reply(200, [{ ref: 'tags/v1' }])
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv1.0')
-      .reply(200, [{ ref: 'tags/v1.0' }])
-      .post('/repos/JasonEtco/test/git/commits')
-      .reply(200, { commit: { sha: '123abc' } })
-      .post('/repos/JasonEtco/test/git/trees')
-      .reply(200)
+    test('updates existing release, minor, and major refs', async () => {
+        ctx = generateContext({
+            github: createMockGithub({
+                getRef: vi.fn().mockResolvedValue({ data: { ref: 'refs/tags/v1.0.0' } })
+            })
+        })
 
-    await buildAndTagAction(tools)
+        await buildAndTagAction(ctx)
 
-    expect(nock.isDone()).toBe(true)
-  })
+        expect(ctx.github.rest.git.updateRef).toHaveBeenCalledTimes(3)
+        expect(ctx.github.rest.git.createRef).not.toHaveBeenCalled()
+    })
 
-  it('updates the ref and creates a new major & minor ref', async () => {
-    nock('https://api.github.com')
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv1.0.0')
-      .reply(200)
-      .post('/repos/JasonEtco/test/git/refs')
-      .times(2)
-      .reply(200)
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv1')
-      .reply(200, [])
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv1.0')
-      .reply(200, [])
-      .post('/repos/JasonEtco/test/git/commits')
-      .reply(200, { commit: { sha: '123abc' } })
-      .post('/repos/JasonEtco/test/git/trees')
-      .reply(200)
+    test('creates release, minor, and major refs when none exist', async () => {
+        await buildAndTagAction(ctx)
 
-    await buildAndTagAction(tools)
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledTimes(3)
+        expect(ctx.github.rest.git.updateRef).not.toHaveBeenCalled()
+    })
 
-    expect(nock.isDone()).toBe(true)
-  })
+    test('does not update floating tags if the release is a draft', async () => {
+        ctx = generateContext({
+            payload: {
+                release: { draft: true, prerelease: false, tag_name: 'v1.0.0' }
+            }
+        })
 
-  it('does not update the major ref if the release is a draft', async () => {
-    nock('https://api.github.com')
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv1.0.0')
-      .reply(200)
-      .post('/repos/JasonEtco/test/git/commits')
-      .reply(200, { commit: { sha: '123abc' } })
-      .post('/repos/JasonEtco/test/git/trees')
-      .reply(200)
+        await buildAndTagAction(ctx)
 
-    tools.context.payload.release.draft = true
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledTimes(1)
+        expect(ctx.github.rest.git.updateRef).not.toHaveBeenCalled()
+        expect(ctx.github.rest.git.getRef).toHaveBeenCalledTimes(1)
+    })
 
-    await buildAndTagAction(tools)
+    test('does not update floating tags if the release is a prerelease', async () => {
+        ctx = generateContext({
+            payload: {
+                release: { draft: false, prerelease: true, tag_name: 'v1.0.0' }
+            }
+        })
 
-    expect(nock.isDone()).toBe(true)
-  })
+        await buildAndTagAction(ctx)
 
-  it('does not update the major ref if the release is a prerelease', async () => {
-    nock('https://api.github.com')
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv1.0.0')
-      .reply(200)
-      .post('/repos/JasonEtco/test/git/commits')
-      .reply(200, { commit: { sha: '123abc' } })
-      .post('/repos/JasonEtco/test/git/trees')
-      .reply(200)
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledTimes(1)
+        expect(ctx.github.rest.git.updateRef).not.toHaveBeenCalled()
+        expect(ctx.github.rest.git.getRef).toHaveBeenCalledTimes(1)
+    })
 
-    tools.context.payload.release.prerelease = true
+    test('does not update floating tags for semver prerelease tag names', async () => {
+        process.env.INPUT_TAG_NAME = 'v2.0.0-beta.1'
+        ctx = generateContext({ eventName: 'workflow_dispatch' })
 
-    await buildAndTagAction(tools)
+        await buildAndTagAction(ctx)
 
-    expect(nock.isDone()).toBe(true)
-  })
+        expect(ctx.github.rest.git.getRef).toHaveBeenCalledTimes(1)
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledTimes(1)
+    })
 
-  it('updates the ref and creates a new major ref for an event other than `release`', async () => {
-    nock('https://api.github.com')
-      .patch('/repos/JasonEtco/test/git/refs/tags%2Fv2.0.0')
-      .reply(200)
-      .post('/repos/JasonEtco/test/git/refs')
-      .times(2)
-      .reply(200)
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv2')
-      .reply(200, [])
-      .get('/repos/JasonEtco/test/git/matching-refs/tags%2Fv2.0')
-      .reply(200, [])
-      .post('/repos/JasonEtco/test/git/commits')
-      .reply(200, { commit: { sha: '123abc' } })
-      .post('/repos/JasonEtco/test/git/trees')
-      .reply(200)
+    test('skips floating tags when update_major_minor_tags is false', async () => {
+        process.env.INPUT_UPDATE_MAJOR_MINOR_TAGS = 'false'
 
-    tools.context.event = 'pull_request'
-    process.env.INPUT_TAG_NAME = 'v2.0.0'
+        await buildAndTagAction(ctx)
 
-    await buildAndTagAction(tools)
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledTimes(1)
+        expect(ctx.github.rest.git.getRef).toHaveBeenCalledTimes(1)
+    })
 
-    expect(nock.isDone()).toBe(true)
-  })
+    test('skips floating tags for non-semver tag names', async () => {
+        process.env.INPUT_TAG_NAME = 'not-a-version'
+        ctx = generateContext({ eventName: 'workflow_dispatch' })
+
+        await buildAndTagAction(ctx)
+
+        expect(ctx.github.rest.git.getRef).toHaveBeenCalledTimes(1)
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledTimes(1)
+    })
+
+    test('creates refs for an event other than release', async () => {
+        process.env.INPUT_TAG_NAME = 'v2.0.0'
+        ctx = generateContext({ eventName: 'pull_request' })
+
+        await buildAndTagAction(ctx)
+
+        expect(ctx.github.rest.git.createRef).toHaveBeenCalledTimes(3)
+        expect(ctx.github.rest.git.updateRef).not.toHaveBeenCalled()
+    })
+
+    test('returns the new commit sha', async () => {
+        const sha = await buildAndTagAction(ctx)
+        expect(sha).toBe('123abc')
+    })
 })

@@ -1,42 +1,71 @@
-import { Toolkit } from 'actions-toolkit'
-import readFile from './read-file'
+import * as core from '@actions/core'
+import readFileBase64 from './read-file'
+import findActionFileName from './find-action-file-name'
+import { getActionEntrypoints } from './get-action-entrypoints'
+import { resolvePublishableFiles } from './resolve-publishable-files'
+import { getAdditionalFilesFromInput } from '../inputs'
+import type { ActionContext } from '../context'
 
-export default async function createCommit(tools: Toolkit) {
-  const { main } = tools.getPackageJSON<{ main?: string }>()
+type TreeEntry = {
+    path: string
+    mode: '100644'
+    type: 'blob'
+    sha: string
+}
 
-  if (!main) {
-    throw new Error('Property "main" does not exist in your `package.json`.')
-  }
+export default async function createCommit(ctx: ActionContext, commitMessage: string) {
+    const packageJson = ctx.getPackageJSON<{ main?: string; files?: string[] }>()
+    const actionFileName = findActionFileName(ctx.workspace)
 
-  tools.log.info('Creating tree')
-  const tree = await tools.github.git.createTree({
-    ...tools.context.repo,
-    tree: [
-      {
-        path: 'action.yml',
-        mode: '100644',
-        type: 'blob',
-        content: await readFile(tools.workspace, 'action.yml')
-      },
-      {
-        path: main,
-        mode: '100644',
-        type: 'blob',
-        content: await readFile(tools.workspace, main)
-      }
+    const candidatePaths = [
+        actionFileName,
+        ...getActionEntrypoints(ctx.workspace, actionFileName),
+        ...(packageJson.main ? [packageJson.main] : []),
+        ...getAdditionalFilesFromInput(),
+        ...(packageJson.files ?? [])
     ]
-  })
 
-  tools.log.complete('Tree created')
+    const paths = new Set(await resolvePublishableFiles(ctx.workspace, candidatePaths))
 
-  tools.log.info('Creating commit')
-  const commit = await tools.github.git.createCommit({
-    ...tools.context.repo,
-    message: 'Automatic compilation',
-    tree: tree.data.sha,
-    parents: [tools.context.sha]
-  })
-  tools.log.complete('Commit created')
+    if (!packageJson.main && paths.size === 1) {
+        throw new Error('Property "main" does not exist in your `package.json` and no action run entrypoints were found.')
+    }
 
-  return commit.data
+    core.info('Creating tree')
+    const treeEntries: TreeEntry[] = []
+    for (const filePath of paths) {
+        treeEntries.push({
+            path: filePath,
+            mode: '100644',
+            type: 'blob',
+            sha: (await createBlob(ctx, filePath)).sha!
+        })
+    }
+
+    const tree = await ctx.github.rest.git.createTree({
+        ...ctx.repo,
+        tree: treeEntries
+    })
+    core.info('Tree created')
+
+    core.info('Creating commit')
+    const commit = await ctx.github.rest.git.createCommit({
+        ...ctx.repo,
+        message: commitMessage,
+        tree: tree.data.sha,
+        parents: [ctx.sha]
+    })
+    core.info(`Commit created (${commit.data.sha})`)
+
+    return commit.data
+}
+
+async function createBlob(ctx: ActionContext, filePath: string) {
+    const content = await readFileBase64(ctx.workspace, filePath)
+    const blob = await ctx.github.rest.git.createBlob({
+        ...ctx.repo,
+        content,
+        encoding: 'base64'
+    })
+    return blob.data
 }

@@ -1,11 +1,31 @@
 name: Build and Tag
 description: Properly tags your GitHub Action
-runs:
-  using: node20
-  main: dist/index.js
-branding:
-  icon: archive
-  color: blue
+author: JasonEtco
+
 inputs:
   tag_name:
     description: The tag to update. If the workflow event is `release`, it will use the `tag_name` from the event payload.
+    required: false
+  commit_message:
+    description: Commit message for the release tag update.
+    required: false
+    default: Automatic compilation
+  additional_files:
+    description: Comma-separated list of extra files to include in the release tag (merged with package.json `files`).
+    required: false
+  update_major_minor_tags:
+    description: Update floating major and minor version tags (for example v1 and v1.0).
+    required: false
+    default: 'true'
+
+outputs:
+  commit_sha:
+    description: SHA of the commit newly created.
+
+runs:
+  using: node24
+  main: dist/index.mjs
+
+branding:
+  icon: archive
+  color: blue

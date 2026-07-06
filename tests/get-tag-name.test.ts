@@ -1,30 +1,27 @@
+import { describe, test, expect, beforeEach } from 'vitest'
 import getTagName from '../src/lib/get-tag-name'
-import { generateToolkit } from './helpers'
-import { Toolkit } from 'actions-toolkit'
+import { generateContext } from './helpers'
+import type { ActionContext } from '../src/context'
 
-describe('update-tag', () => {
-  let tools: Toolkit
+describe('get-tag-name', () => {
+    let ctx: ActionContext
 
-  beforeEach(() => {
-    tools = generateToolkit()
-    delete process.env.INPUT_TAG_NAME
-  })
+    beforeEach(() => {
+        process.env.INPUT_TAG_NAME = ''
+        ctx = generateContext()
+    })
 
-  it('gets the tag from the release payload', () => {
-    const result = getTagName(tools)
-    expect(result).toBe('v1.0.0')
-  })
+    test('gets the tag from the release payload', () => {
+        expect(getTagName(ctx)).toBe('v1.0.0')
+    })
 
-  it('gets the tag from the release payload', () => {
-    process.env.INPUT_TAG_NAME = 'v2.1.1'
-    const result = getTagName(tools)
-    expect(result).toBe('v2.1.1')
-  })
+    test('gets the tag from the input', () => {
+        process.env.INPUT_TAG_NAME = 'v2.1.1'
+        expect(getTagName(ctx)).toBe('v2.1.1')
+    })
 
-  it('gets the tag from the release payload', () => {
-    tools.context.event = 'pizza'
-    expect(() => getTagName(tools)).toThrowError(
-      'No tag_name was found or provided!'
-    )
-  })
+    test('throws when no tag is available', () => {
+        ctx = generateContext({ eventName: 'pizza' })
+        expect(() => getTagName(ctx)).toThrow('No tag_name was found or provided!')
+    })
 })

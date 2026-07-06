@@ -1,0 +1,4 @@
+name: Yaml Action
+runs:
+  using: node24
+  main: index.js

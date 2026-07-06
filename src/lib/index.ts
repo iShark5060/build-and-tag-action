@@ -1,37 +1,43 @@
-import { Toolkit } from 'actions-toolkit'
+import * as core from '@actions/core'
 import semver from 'semver'
+import type { ActionContext } from '../context'
+import { getCommitMessage, shouldUpdateMajorMinorTags } from '../inputs'
 import createOrUpdateRef from './create-or-update-ref'
 import createCommit from './create-commit'
-import updateTag from './update-tag'
 import getTagName from './get-tag-name'
 
-export default async function buildAndTagAction(tools: Toolkit) {
-  // Get the tag to update
-  const tagName = getTagName(tools)
-  tools.log.info(`Updating tag [${tagName}]`)
+export default async function buildAndTagAction(ctx: ActionContext): Promise<string> {
+    const tagName = getTagName(ctx)
+    core.info(`Updating tag [${tagName}]`)
 
-  // Create a new commit, with the new tree
-  const commit = await createCommit(tools)
+    const commit = await createCommit(ctx, getCommitMessage())
+    const commitSha = commit.sha!
+    await createOrUpdateRef(ctx, commitSha, tagName)
 
-  // Update the tag to point to the new commit
-  await updateTag(tools, commit.sha, tagName)
+    let rewriteMajorAndMinorRef = shouldUpdateMajorMinorTags()
 
-  // Also update the major version tag.
-  // For example, for version v1.0.0, we'd also update v1.
-  let shouldRewriteMajorAndMinorRef = true
-
-  // If this is a release event, only update the major ref for a full release.
-  if (tools.context.event === 'release') {
-    const { draft, prerelease } = tools.context.payload.release
-    if (draft || prerelease) {
-      shouldRewriteMajorAndMinorRef = false
+    if (ctx.eventName === 'release') {
+        const release = ctx.payload.release as { draft?: boolean; prerelease?: boolean } | undefined
+        if (release?.draft || release?.prerelease) {
+            rewriteMajorAndMinorRef = false
+        }
     }
-  }
 
-  if (shouldRewriteMajorAndMinorRef) {
-    const majorStr = semver.major(tagName).toString()
-    const minorStr = semver.minor(tagName).toString()
-    await createOrUpdateRef(tools, commit.sha, `${majorStr}.${minorStr}`)
-    return createOrUpdateRef(tools, commit.sha, majorStr)
-  }
+    if (semver.prerelease(tagName)) {
+        rewriteMajorAndMinorRef = false
+    }
+
+    if (rewriteMajorAndMinorRef) {
+        const cleanTag = semver.clean(tagName)
+        if (!cleanTag) {
+            core.warning(`Skipping major/minor tag update: [${tagName}] is not a valid semver tag`)
+        } else {
+            const majorStr = semver.major(cleanTag).toString()
+            const minorStr = semver.minor(cleanTag).toString()
+            await createOrUpdateRef(ctx, commitSha, `v${majorStr}.${minorStr}`)
+            await createOrUpdateRef(ctx, commitSha, `v${majorStr}`)
+        }
+    }
+
+    return commitSha
 }

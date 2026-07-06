@@ -1,13 +1,17 @@
-import { Toolkit } from 'actions-toolkit'
+import { getTagNameInput, type ActionContext } from '../context'
 
-export default function getTagName(tools: Toolkit): string {
-  if (tools.inputs.tag_name) {
-    return tools.inputs.tag_name
-  }
+export default function getTagName(ctx: ActionContext): string {
+    const tagNameInput = getTagNameInput()
+    if (tagNameInput) {
+        return tagNameInput
+    }
 
-  if (tools.context.event === 'release') {
-    return tools.context.payload.release.tag_name
-  }
+    if (ctx.eventName === 'release') {
+        const release = ctx.payload.release as { tag_name?: string } | undefined
+        if (release?.tag_name) {
+            return release.tag_name
+        }
+    }
 
-  throw new Error('No tag_name was found or provided!')
+    throw new Error('No tag_name was found or provided!')
 }

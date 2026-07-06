@@ -1,33 +1,38 @@
-import { Toolkit } from 'actions-toolkit'
+import * as core from '@actions/core'
+import type { ActionContext } from '../context'
 
 export default async function createOrUpdateRef(
-  tools: Toolkit,
-  sha: string,
-  tagName: string
+    ctx: ActionContext,
+    sha: string,
+    tagName: string
 ) {
-  const refName = `tags/v${tagName}`
-  tools.log.info(`Updating major version tag ${refName}`)
-  const { data: matchingRefs } = await tools.github.git.listMatchingRefs({
-    ...tools.context.repo,
-    ref: refName
-  })
+    const refName = `tags/${tagName}`
+    core.info(`Checking if version tag ${refName} already exists...`)
 
-  const matchingRef = matchingRefs.find((refObj) => {
-    return refObj.ref.endsWith(refName)
-  })
+    const refExists = await ctx.github.rest.git
+        .getRef({ ...ctx.repo, ref: refName })
+        .then(() => true)
+        .catch((error: { status?: number }) => {
+            if (error.status === 404) {
+                return false
+            }
+            throw error
+        })
 
-  if (matchingRef !== undefined) {
-    await tools.github.git.updateRef({
-      ...tools.context.repo,
-      force: true,
-      ref: refName,
-      sha
-    })
-  } else {
-    await tools.github.git.createRef({
-      ...tools.context.repo,
-      ref: `refs/${refName}`,
-      sha
-    })
-  }
+    if (refExists) {
+        core.info(`Tag ${refName} already exists, updating it.`)
+        await ctx.github.rest.git.updateRef({
+            ...ctx.repo,
+            force: true,
+            ref: refName,
+            sha
+        })
+    } else {
+        core.info(`Tag ${refName} does not exist, creating it.`)
+        await ctx.github.rest.git.createRef({
+            ...ctx.repo,
+            ref: `refs/${refName}`,
+            sha
+        })
+    }
 }
