@@ -24,7 +24,7 @@ outputs:
 
 runs:
   using: 'node24'
-  main: dist/index.mjs
+  main: dist/index.js
 
 branding:
   icon: archive

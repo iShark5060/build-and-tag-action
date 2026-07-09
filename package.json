@@ -4,8 +4,7 @@
   "private": true,
   "description": "Properly tags your GitHub Action after building",
   "license": "MIT",
-  "type": "module",
-  "main": "dist/index.mjs",
+  "main": "dist/index.js",
   "scripts": {
     "validate": "node run-quality-checks.mjs",
     "lint": "oxlint .",
@@ -15,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/index.mjs --minify",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.js --minify",
     "deps": "pnpm dlx npm-check-updates --target newest -u"
   },
   "dependencies": {

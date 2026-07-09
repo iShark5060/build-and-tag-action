@@ -45,17 +45,17 @@ jobs:
         run: pnpm run build
 
       - name: Verify action bundle
-        run: node --check dist/index.mjs
+        run: node --check dist/index.js
 
       - name: Attest action.yml
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: action.yml
 
-      - name: Attest dist/index.mjs
+      - name: Attest dist/index.js
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: dist/index.mjs
+          subject-path: dist/index.js
 
       - name: Publish to release tag
         uses: ./

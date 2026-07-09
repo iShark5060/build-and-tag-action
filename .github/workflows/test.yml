@@ -46,4 +46,4 @@ jobs:
         run: pnpm run build
 
       - name: Verify action bundle
-        run: node --check dist/index.mjs
+        run: node --check dist/index.js
