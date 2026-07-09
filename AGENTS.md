@@ -1,11 +1,40 @@
-## OpenWiki
+# actions-build-and-tag
 
-This repository has documentation located in the /openwiki directory.
+GitHub Action for publishing JavaScript Actions to release and floating version tags.
 
-Start here:
+## Architecture
 
-- [OpenWiki quickstart](openwiki/quickstart.md)
+- `src/index.ts` — entry point: create context, orchestrate, set outputs
+- `src/lib/` — core logic (commit creation, ref updates, file resolution)
+- `src/context.ts`, `src/inputs.ts` — GitHub context and input parsing
+- `action.yml` — action metadata
+- `dist/index.js` — published CJS bundle (committed on release tags only)
 
-OpenWiki includes repository overview, architecture notes, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
+## Contract sync
 
-When working in this repository, read the OpenWiki quickstart first, then follow its links to the relevant architecture, workflow, domain, operation, and testing notes.
+When behavior changes, update:
+
+- `README.md`
+- `action.yml`
+- tests under `tests/`
+- regenerate `dist/index.js` with `pnpm run build` on the release tag
+
+## Verification
+
+```bash
+pnpm run validate
+pnpm run build
+```
+
+## Release
+
+1. Create a pre-release from `main`
+2. Verify the Release workflow completes
+3. Promote to a full release when ready
+
+## Dependencies
+
+```bash
+pnpm run deps
+pnpm install
+```

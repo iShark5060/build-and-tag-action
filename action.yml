@@ -1,6 +1,6 @@
 name: Build and Tag
-description: Properly tags your GitHub Action
-author: JasonEtco
+description: Publish JavaScript GitHub Actions to release and floating version tags
+author: iShark5060
 
 inputs:
   tag_name:
@@ -23,7 +23,7 @@ outputs:
     description: SHA of the commit newly created.
 
 runs:
-  using: 'node24'
+  using: node24
   main: dist/index.js
 
 branding:

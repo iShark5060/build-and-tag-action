@@ -1,9 +1,13 @@
 {
-  "name": "build-and-tag-action",
+  "name": "actions-build-and-tag",
   "version": "1.0.1",
   "private": true,
-  "description": "Properly tags your GitHub Action after building",
+  "description": "Publish JavaScript GitHub Actions to release and floating version tags",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iShark5060/actions-build-and-tag.git"
+  },
   "main": "dist/index.js",
   "scripts": {
     "validate": "node run-quality-checks.mjs",

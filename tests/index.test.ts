@@ -5,7 +5,7 @@ import buildAndTagAction from '../src/lib';
 import { createMockGithub, generateContext } from './helpers';
 import { resetReleaseFixture } from './setup';
 
-describe('build-and-tag-action', () => {
+describe('actions-build-and-tag', () => {
   let ctx: ActionContext;
 
   beforeEach(() => {
