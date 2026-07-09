@@ -81,15 +81,15 @@ This action creates commits and updates tags via the GitHub API. Your workflow m
 
 ## Options
 
-| Input | Required | Default | Description |
-| - | - | - | - |
-| `tag_name` | No | — | Tag to update. Defaults to `release.tag_name` on `release` events. |
-| `commit_message` | No | `Automatic compilation` | Commit message for the release tag update. |
-| `additional_files` | No | — | Comma-separated extra files to include (merged with `package.json` `files`). |
-| `update_major_minor_tags` | No | `true` | Update floating major/minor tags (e.g. `v1`, `v1.0`). |
+| Input                     | Required | Default                 | Description                                                                  |
+| ------------------------- | -------- | ----------------------- | ---------------------------------------------------------------------------- |
+| `tag_name`                | No       | —                       | Tag to update. Defaults to `release.tag_name` on `release` events.           |
+| `commit_message`          | No       | `Automatic compilation` | Commit message for the release tag update.                                   |
+| `additional_files`        | No       | —                       | Comma-separated extra files to include (merged with `package.json` `files`). |
+| `update_major_minor_tags` | No       | `true`                  | Update floating major/minor tags (e.g. `v1`, `v1.0`).                        |
 
-| Output | Description |
-| - | - |
+| Output       | Description                      |
+| ------------ | -------------------------------- |
 | `commit_sha` | SHA of the newly created commit. |
 
 ## Behavior notes

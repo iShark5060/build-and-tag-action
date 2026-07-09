@@ -3,15 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "description": "Properly tags your GitHub Action after building",
-  "main": "dist/index.mjs",
+  "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@11.10.0",
+  "main": "dist/index.mjs",
   "scripts": {
+    "validate": "node run-quality-checks.mjs",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "format": "oxfmt --write .",
+    "check-format": "oxfmt --check .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "ncc build -o dist --minify src/index.ts && node --input-type=module -e \"import fs from 'fs'; fs.renameSync('dist/index.js','dist/index.mjs'); fs.rmSync('dist/package.json',{force:true});\"",
+    "test:coverage": "vitest run --coverage",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/index.mjs --minify",
     "deps": "pnpm dlx npm-check-updates --target newest -u"
   },
-  "license": "MIT",
   "dependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
@@ -19,10 +25,16 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@types/node": "^24.13.3",
     "@types/semver": "^7.7.1",
-    "@vercel/ncc": "^0.44.1",
-    "typescript": "^6.0.3",
+    "esbuild": "^0.28.1",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
-  }
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.10.0"
 }
