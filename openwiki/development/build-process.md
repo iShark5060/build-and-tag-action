@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document describes the build process, toolchain, and development setup for the build-and-tag-action. The project uses modern JavaScript/TypeScript tooling with pnpm for package management and @vercel/ncc for bundling.
+This document describes the build process, toolchain, and development setup for the build-and-tag-action. The project uses modern JavaScript/TypeScript tooling with pnpm for package management and esbuild for bundling.
 
 ## Development Environment
 
 ### Prerequisites
 
-- **Node.js**: Version 20 or higher (runtime uses Node.js 24)
+- **Node.js**: Version 24 or higher (runtime uses Node.js 24)
 - **Package Manager**: pnpm (version specified in `packageManager` field)
 - **Git**: For version control
 
@@ -26,9 +26,17 @@ pnpm install
 pnpm test
 ```
 
-## Package Management
+## Configuration Files
 
-### pnpm Configuration
+### Development Tool Configuration
+
+- **`.oxfmtrc.json`**: Configuration for oxfmt code formatter
+- **`.oxlintrc.json`**: Configuration for oxlint TypeScript/JavaScript linter
+- **`.tool-versions`**: Runtime version specification (asdf-compatible)
+
+### Package Management
+
+#### pnpm Configuration
 
 **Workspace Configuration** (`/pnpm-workspace.yaml`):
 
@@ -67,11 +75,13 @@ allowBuilds:
 ```json
 {
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@types/node": "^24.13.3",
     "@types/semver": "^7.7.1",
-    "@vercel/ncc": "^0.44.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "esbuild": "^0.28.1",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }
 ```
@@ -116,7 +126,7 @@ pnpm install   # Update lock file
 
 - **Target**: ES2022 for modern JavaScript features
 - **Module**: ESNext for ES module support
-- **Module Resolution**: Bundler for compatibility with ncc
+- **Module Resolution**: Bundler for compatibility with bundlers
 - **Strict**: Full TypeScript strict mode
 - **Output**: `dist/` directory for compiled files
 - **Root**: `src/` directory for source files
@@ -128,55 +138,58 @@ pnpm install   # Update lock file
 ```json
 {
   "scripts": {
-    "build": "ncc build -o dist --minify src/index.ts && node --input-type=module -e \"import fs from 'fs'; fs.renameSync('dist/index.js','dist/index.mjs'); fs.rmSync('dist/package.json',{force:true});\""
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.js --minify"
   }
 }
 ```
 
 ### Build Steps
 
-#### 1. Compilation with ncc
+#### 1. Compilation with esbuild
 
 ```bash
-ncc build -o dist --minify src/index.ts
+esbuild src/index.ts --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.js --minify
 ```
 
-**What ncc does**:
+**What esbuild does**:
 
 - Bundles all dependencies into single file
 - Tree-shakes unused code
 - Minifies output for smaller bundle size
-- Outputs to `dist/index.js`
+- Outputs to `dist/index.js` (CommonJS format for GitHub Actions)
 
-#### 2. Rename to .mjs
-
-```bash
-node --input-type=module -e "import fs from 'fs'; fs.renameSync('dist/index.js','dist/index.mjs');"
-```
-
-**Why .mjs**:
-
-- Clear ES module indication
-- Required for `type: "module"` in package.json
-- GitHub Actions expects ES modules for Node.js actions
-
-#### 3. Cleanup
-
-```bash
-fs.rmSync('dist/package.json',{force:true})
-```
-
-**Removes**: ncc-generated package.json to avoid conflicts
-
-### Output Structure
+#### 2. Output Structure
 
 ```
 dist/
-└── index.mjs           # Bundled action (ES module)
+└── index.js           # Bundled action (CommonJS format)
 ```
 
 **File Size**: Typically 100-200KB after minification
 **Included Dependencies**: @actions/core, @actions/github, semver, yaml
+
+## Quality Assurance Scripts
+
+### Runtime Preflight Check (`scripts/runtime-preflight.mjs`)
+
+Validates environment before running quality checks:
+- Verifies Node.js version (24+)
+- Checks pnpm version compatibility
+- Ensures required tools are available
+
+### Quality Checks (`run-quality-checks.mjs`)
+
+Comprehensive quality validation script that runs:
+
+1. **Formatting check** (`pnpm run check-format`)
+2. **Linting** (`pnpm run lint`) 
+3. **Type checking** (`pnpm run typecheck`)
+4. **Tests** (`pnpm run test`)
+
+**Usage**:
+```bash
+pnpm run validate  # Runs all quality checks
+```
 
 ## Development Workflow
 
@@ -193,22 +206,23 @@ pnpm test
 pnpm run build
 
 # Verify bundle
-node --check dist/index.mjs
+node --check dist/index.js
 ```
 
 ### Code Quality
 
 **Type Checking**: Built into TypeScript compilation
 **Testing**: Vitest for unit tests
-**No Linting**: No ESLint/prettier configuration in this repository
+**Linting**: oxlint for code quality checks
+**Formatting**: oxfmt for code formatting
 
 ### File Structure Conventions
 
 - **Source Files**: `/src/**/*.ts`
 - **Test Files**: `/tests/**/*.test.ts`
 - **Fixtures**: `/tests/fixtures/**/*`
-- **Build Output**: `/dist/index.mjs`
-- **Configuration**: Root-level `*.json`, `*.yml` files
+- **Build Output**: `/dist/index.js`
+- **Configuration**: Root-level `*.json`, `*.yml`, `*.mjs` files
 
 ## GitHub Actions Integration
 
@@ -217,11 +231,11 @@ node --check dist/index.mjs
 ```yaml
 runs:
   using: node24
-  main: dist/index.mjs
+  main: dist/index.js
 ```
 
 **Runtime**: Node.js 24 (GitHub Actions supported version)
-**Entry Point**: Compiled bundle at `dist/index.mjs`
+**Entry Point**: Compiled bundle at `dist/index.js` (CommonJS format)
 
 ### Release Workflow (`/.github/workflows/release.yml`)
 
@@ -235,7 +249,7 @@ runs:
 5. Verify bundle
 6. Run build-and-tag-action on itself
 
-### Test Workflow (`/.github/workflows/test.yml`)
+### CI Workflow (`/.github/workflows/ci.yml`)
 
 **Purpose**: Run tests on push and PR
 **Steps**:
@@ -247,19 +261,25 @@ runs:
 
 ## Module System
 
-### ES Modules
+### CommonJS for Runtime
 
 **Package.json Configuration**:
 
 ```json
 {
-  "type": "module",
-  "main": "dist/index.mjs"
+  "main": "dist/index.js"
 }
 ```
 
-**Imports**: Use ES module syntax (`import/export`)
-**File Extensions**: `.ts` for source, `.mjs` for compiled output
+**Action.yml Configuration**:
+```yaml
+runs:
+  using: node24
+  main: dist/index.js
+```
+
+**Source Code**: TypeScript with ES module syntax (`import/export`)
+**Compiled Output**: CommonJS format for GitHub Actions compatibility
 
 ### TypeScript Modules
 
@@ -295,177 +315,6 @@ export interface ActionContext { ... }
 
 ### Bundle Analysis
 
-**ncc Output**: Single file with all dependencies bundled
+**esbuild Output**: Single file with all dependencies bundled
 **Tree Shaking**: Unused code removed during bundling
 **Minification**: Code size reduced for faster loading
-
-## Version Management
-
-### Package Version
-
-**Current**: `1.0.0` (private package)
-**Versioning**: Semantic versioning for releases
-
-### Node.js Version Compatibility
-
-**Build Time**: Node.js 20+ (development)
-**Runtime**: Node.js 24 (production, per action.yml)
-**API Compatibility**: GitHub Actions Node.js runtime API
-
-## Build Artifacts
-
-### Generated Files
-
-**Primary Artifact**: `dist/index.mjs`
-
-- Contains bundled action code
-- Includes all dependencies
-- Minified for performance
-- ES module format
-
-**No Source Maps**: Minified bundle doesn't include source maps
-**No Type Definitions**: Runtime doesn't need TypeScript definitions
-
-### Artifact Management
-
-**Git Ignored**: `dist/` in `.gitignore` for development
-**Release Only**: Built and included only in release tags
-**Self-hosting**: Action builds itself during release
-
-## Development Tools
-
-### Recommended Editor Setup
-
-**VS Code Extensions**:
-
-- TypeScript/JavaScript language features
-- GitHub Actions extension
-- Vitest test runner integration
-
-**Editor Settings**:
-
-```json
-{
-  "typescript.preferences.importModuleSpecifier": "relative"
-}
-```
-
-### Debugging
-
-**TypeScript Debugging**:
-
-```bash
-# Compile with source maps (development only)
-npx tsc --sourceMap
-```
-
-**Test Debugging**:
-
-```bash
-# Run specific test with debug output
-npx vitest run -t "test name" --reporter=verbose
-```
-
-**Action Debugging**:
-
-```bash
-# Enable step debugging
-export ACTIONS_STEP_DEBUG=true
-```
-
-## Performance Considerations
-
-### Build Performance
-
-**ncc Caching**: ncc may cache compilation results
-**Dependency Size**: Minimal dependencies keep bundle small
-**Tree Shaking**: Dead code elimination reduces bundle size
-
-### Runtime Performance
-
-**Single Bundle**: No module resolution at runtime
-**Minified Code**: Smaller download and parse time
-**ES Module**: Native module support in Node.js
-
-## Security Considerations
-
-### Dependency Security
-
-**Regular Updates**: Dependabot monitors for vulnerabilities
-**Minimal Dependencies**: Reduced attack surface
-**Trusted Sources**: Official GitHub and npm packages
-
-### Build Process Security
-
-**Local Builds**: Developers build locally before committing
-**CI Verification**: GitHub Actions verifies builds
-**Bundle Integrity**: Single file easier to audit
-
-## Customization and Extension
-
-### Modifying Build Process
-
-**To change bundler**:
-
-1. Update `build` script in package.json
-2. Adjust TypeScript configuration if needed
-3. Update test environment if bundle format changes
-
-**To add preprocessing**:
-
-1. Add build steps before ncc command
-2. Update cleanup steps if needed
-3. Test with full build process
-
-### Supporting Additional Formats
-
-**CommonJS Output**:
-
-```bash
-# Would require TypeScript module change
-ncc build -o dist --minify src/index.ts --target commonjs
-```
-
-**Multiple Entry Points**:
-
-```bash
-# Would require action.yml and build script updates
-ncc build -o dist --minify src/index.ts src/other.ts
-```
-
-## Troubleshooting Build Issues
-
-### Common Problems
-
-#### Issue: ncc bundle errors
-
-**Solution**: Check import paths and dependency versions
-
-#### Issue: .mjs file not recognized
-
-**Solution**: Ensure `type: "module"` in package.json
-
-#### Issue: Tests fail after build
-
-**Solution**: Clear dist directory and rebuild
-
-#### Issue: Bundle too large
-
-**Solution**: Review dependencies for unnecessary imports
-
-### Build Verification
-
-```bash
-# Verify bundle syntax
-node --check dist/index.mjs
-
-# Test bundle execution
-node dist/index.mjs
-
-# Check file size
-ls -lh dist/index.mjs
-```
-
----
-
-**Related**: [Testing Architecture](testing.md) for test setup details, [Release Process](../operations/release-process.md) for deployment workflow.

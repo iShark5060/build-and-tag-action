@@ -51,7 +51,7 @@ jobs:
 ├── .github/
 │   ├── workflows/
 │   │   ├── release.yml    # Release workflow example
-│   │   └── test.yml       # Test workflow
+│   │   └── ci.yml         # CI workflow
 │   ├── CODEOWNERS
 │   └── dependabot.yml
 ├── src/
@@ -89,10 +89,8 @@ jobs:
 ```json
 {
   "name": "your-action-name",
-  "main": "dist/index.mjs",
-  "type": "module",
-  "scripts": {
-    "build": "ncc build -o dist --minify src/index.ts && node --input-type=module -e \"import fs from 'fs'; fs.renameSync('dist/index.js','dist/index.mjs');\""
+  "main": "dist/index.js",\r\n  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.js --minify"
   }
 }
 ```
@@ -102,7 +100,7 @@ jobs:
 ```yaml
 runs:
   using: node24
-  main: dist/index.mjs
+  main: dist/index.js
 ```
 
 3. **Add to your release workflow** (see example above)
@@ -158,7 +156,7 @@ Floating tags are updated when:
 
 ## Important Notes
 
-- **Always reference published version tags** (e.g., `@v1`). The bundled action code (`dist/index.mjs`) is only committed to release tags, so referencing `@main` will not work.
+- **Always reference published version tags** (e.g., `@v1`). The bundled action code (`dist/index.js`) is only committed to release tags, so referencing `@main` will not work.
 - **Permissions**: Your workflow must grant `contents: write` to `GITHUB_TOKEN` for tag updates to succeed.
 - **Binary Assets**: Files are uploaded as base64 blobs, ensuring binary assets (e.g., `.wasm`) are not corrupted.
 
@@ -171,3 +169,4 @@ Floating tags are updated when:
 ---
 
 **Next Steps**: Read the [Architecture](architecture/core-workflow.md) section to understand how the action works internally, or jump to [Usage Patterns](workflows/usage.md) for practical integration examples.
+

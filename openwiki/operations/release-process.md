@@ -202,7 +202,7 @@ pnpm test
 
 - [ ] Release workflow completed successfully
 - [ ] Tags created/updated correctly
-- [ ] Action works in test workflow
+- [ ] Action works in CI workflow
 - [ ] No regressions in dependent workflows
 
 ## Maintenance Tasks

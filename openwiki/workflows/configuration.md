@@ -15,7 +15,7 @@ description: Properly tags your GitHub Action
 author: JasonEtco
 runs:
   using: node24
-  main: dist/index.mjs
+  main: dist/index.js
 branding:
   icon: archive
   color: blue
@@ -275,7 +275,7 @@ The action automatically discovers files from these sources (in order):
 
 ```json
 {
-  "main": "dist/index.mjs",
+  "main": "dist/index.js",
   "type": "module"
 }
 ```
@@ -301,7 +301,7 @@ The action automatically discovers files from these sources (in order):
 ```yaml
 runs:
   using: node24
-  main: dist/index.mjs # Will be automatically included
+  main: dist/index.js # Will be automatically included
 ```
 
 **Composite Actions**:
@@ -310,8 +310,8 @@ runs:
 runs:
   using: composite
   steps: [...]
-  pre: dist/pre.mjs # Automatically included
-  post: dist/post.mjs # Automatically included
+  pre: dist/pre.js # Automatically included
+  post: dist/post.js # Automatically included
 ```
 
 ## GitHub Event Configuration
@@ -447,7 +447,7 @@ const context = {
   sha: 'abc123',
   eventName: 'release',
   payload: { release: { tag_name: 'v1.0.0' } },
-  getPackageJSON: async () => ({ main: 'dist/index.mjs' }),
+  getPackageJSON: async () => ({ main: 'dist/index.js' }),
 };
 
 const commitSha = await buildAndTagAction(context);
@@ -480,3 +480,6 @@ const commitSha = await buildAndTagAction(context);
 ---
 
 **Related**: [Usage Patterns](usage.md) for practical examples, [Business Rules](../architecture/business-rules.md) for logic details.
+
+
+

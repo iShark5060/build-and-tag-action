@@ -266,7 +266,7 @@ The action automatically reads the `files` field from `package.json`. Configure 
 ```json
 {
   "name": "my-action",
-  "main": "dist/index.mjs",
+  "main": "dist/index.js",
   "files": ["dist/", "action.yml", "README.md", "LICENSE"]
 }
 ```
@@ -285,8 +285,8 @@ runs:
       shell: bash
 
   # These will be automatically included
-  pre: dist/pre.mjs
-  post: dist/post.mjs
+  pre: dist/pre.js
+  post: dist/post.js
 ```
 
 ### Binary Assets (WASM, Images, etc.)
@@ -480,3 +480,6 @@ uses: iShark5060/build-and-tag-action@v1
 ---
 
 **Next**: [Configuration Reference](configuration.md) for detailed input/output specifications.
+
+
+

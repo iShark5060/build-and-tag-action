@@ -51,7 +51,8 @@ export default defineConfig({
 ```json
 {
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   }
 }
 ```
@@ -69,7 +70,7 @@ export default defineConfig({
 3. Mock GitHub workspace location
 4. Set up Vitest environment
 
-**Source**: `/tests/setup.ts` (lines 1-35)
+**Source**: `/tests/setup.ts`
 
 ### Test Helpers (`/tests/helpers.ts`)
 
@@ -99,202 +100,78 @@ export function createMockGithub() {
 }
 ```
 
-#### `generateContext(options?)`
+#### `setInput(name: string, value: string)`
 
-Generates test action context with configurable options:
+Mock GitHub Actions inputs for testing:
 
 ```typescript
-export function generateContext(options: Partial<ContextOptions> = {}) {
-  return {
-    github: options.github || createMockGithub(),
-    repo: options.repo || { owner: 'test-owner', repo: 'test-repo' },
-    workspace: options.workspace || '/test/workspace',
-    sha: options.sha || 'abc123',
-    eventName: options.eventName || 'release',
-    payload: options.payload || { release: { tag_name: 'v1.0.0' } },
-    getPackageJSON: options.getPackageJSON || (async () => ({ main: 'dist/index.js' })),
-  };
+export function setInput(name: string, value: string) {
+  process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`] = value;
 }
 ```
 
-## Test Fixtures
+#### `resetInputs()`
 
-### Workspace Fixtures
-
-#### 1. Standard Workspace (`/tests/fixtures/workspace/`)
-
-**Structure**:
-
-```
-workspace/
-├── action.yml          # Action configuration
-├── package.json        # Package configuration
-└── index.js           # Entry point
-```
-
-**Purpose**: Tests normal action configuration and file resolution.
-
-#### 2. YAML Action File (`/tests/fixtures/workspace-yaml/`)
-
-**Structure**:
-
-```
-workspace-yaml/
-├── action.yaml         # YAML extension
-├── package.json
-└── index.js
-```
-
-**Purpose**: Tests action file discovery with `.yaml` extension.
-
-#### 3. Composite Action (`/tests/fixtures/workspace-composite/`)
-
-**Structure**:
-
-```
-workspace-composite/
-├── action.yml          # Composite action with pre/post
-├── package.json
-└── dist/
-    ├── restore/
-    │   └── index.js    # pre entrypoint
-    └── save/
-        └── index.js    # post entrypoint
-```
-
-**Purpose**: Tests composite actions with multiple entrypoints.
-
-#### 4. No Entrypoints (`/tests/fixtures/workspace-no-entrypoints/`)
-
-**Structure**:
-
-```
-workspace-no-entrypoints/
-├── action.yml          # Missing runs.main
-└── package.json        # Missing main field
-```
-
-**Purpose**: Tests error conditions for insufficient configuration.
-
-### Event Payload Fixture (`/tests/fixtures/release.json`)
-
-**Purpose**: Provides sample release event data for testing.
-
-## Testing Patterns
-
-### Module Testing Structure
-
-Each test file follows this pattern:
+Clear all mocked inputs between tests:
 
 ```typescript
-describe('module-name', () => {
+export function resetInputs() {
+  Object.keys(process.env)
+    .filter(key => key.startsWith('INPUT_'))
+    .forEach(key => delete process.env[key]);
+}
+```
+
+## Test Patterns
+
+### Module Testing
+
+Each core module (`src/lib/*.ts`) has corresponding tests (`tests/*.test.ts`).
+
+**Example**: `src/lib/create-commit.ts` → `tests/create-commit.test.ts`
+
+**Test Structure**:
+
+```typescript
+describe('createCommit', () => {
   beforeEach(() => {
-    // Reset mocks and environment
-    vi.clearAllMocks();
-    // Setup test-specific conditions
+    // Reset mocks and inputs
+    vi.resetAllMocks();
+    resetInputs();
   });
 
-  describe('function-name', () => {
-    it('should do something', async () => {
-      // Arrange
-      const context = generateContext({/* options */});
+  it('creates commit with files', async () => {
+    // Arrange
+    const mockGithub = createMockGithub();
+    const files = [{ path: 'action.yml', content: '...' }];
 
-      // Act
-      const result = await functionUnderTest(context);
+    // Act
+    const result = await createCommit(mockGithub, files, 'main');
 
-      // Assert
-      expect(result).toBe(expectedValue);
-      expect(mockFunction).toHaveBeenCalledWith(expectedArgs);
-    });
-
-    it('should handle error case', async () => {
-      // Arrange
-      const context = generateContext({/* error conditions */});
-
-      // Act & Assert
-      await expect(functionUnderTest(context)).rejects.toThrow('Expected error message');
-    });
+    // Assert
+    expect(mockGithub.rest.git.createBlob).toHaveBeenCalled();
+    expect(result).toBe('123abc');
   });
 });
 ```
 
-### Mocking Strategy
+### Integration Testing (`/tests/index.test.ts`)
 
-#### GitHub API Mocks
+Tests the main action entry point with full workflow.
 
-- **Complete Isolation**: All GitHub API calls mocked
-- **Configurable Responses**: Each mock can be reconfigured per test
-- **Error Simulation**: Mock rejection for error case testing
+**Key Test Scenarios**:
 
-#### File System Mocks
+1. **Release Event**: Normal GitHub release workflow
+2. **Explicit Tag**: Manual tag specification
+3. **Floating Tags**: Major/minor tag updates
+4. **Error Cases**: Invalid inputs, API failures
+5. **Edge Cases**: Draft releases, pre-releases
 
-- **Fixture-based**: Uses real fixture files for file system operations
-- **Path Mocking**: `process.cwd()` and workspace paths mocked
-- **File Reading**: Actual file reading with mocked paths
+### Mock Strategy
 
-#### Environment Mocking
-
-- `process.env` manipulation for GitHub environment variables
-- Event payload file mocking
-- Workspace directory mocking
-
-## Test Coverage Areas
-
-### Core Action Logic (`/tests/index.test.ts`)
-
-**Test Scenarios**:
-
-1. Happy path with release event
-2. Draft release handling (skips floating tags)
-3. Pre-release handling (skips floating tags)
-4. Non-semver tag handling
-5. Custom tag name input
-6. Error propagation
-
-### Commit Creation (`/tests/create-commit.test.ts`)
-
-**Test Scenarios**:
-
-1. Normal commit creation with multiple files
-2. Single file with package.json main field
-3. Single file without main field (error)
-4. GitHub API error handling
-5. File resolution integration
-
-### Tag Reference Management (`/tests/create-or-update-ref.test.ts`)
-
-**Test Scenarios**:
-
-1. Create new tag (404 response)
-2. Update existing tag (successful getRef)
-3. GitHub API error handling
-4. Tag name formatting
-
-### File Discovery (`/tests/find-action-file-name.test.ts`)
-
-**Test Scenarios**:
-
-1. Find action.yml
-2. Find action.yaml (fallback)
-3. Neither found (error)
-4. Workspace path handling
-
-### Tag Name Resolution (`/tests/get-tag-name.test.ts`)
-
-**Test Scenarios**:
-
-1. Use tag_name input (priority)
-2. Use release event tag (fallback)
-3. No tag name provided (error)
-4. Non-release event without tag (error)
-
-### File Reading (`/tests/read-file.test.ts`)
-
-**Test Scenarios**:
-
-1. Read existing file
-2. Handle missing file (error)
-3. Base64 encoding verification
+**GitHub API**: All Octokit calls mocked with `vi.fn()`
+**File System**: Real file operations on fixture directories
+**Environment**: GitHub context variables simulated
 
 ## Running Tests
 
@@ -304,101 +181,16 @@ describe('module-name', () => {
 # Run all tests
 pnpm test
 
+# Run with coverage
+pnpm run test:coverage
+
 # Run specific test file
 pnpm test tests/index.test.ts
-
-# Watch mode (development)
-npx vitest
 ```
 
-### CI/CD Integration
+### Continuous Integration
 
-Tests run automatically via GitHub Actions workflow (`/.github/workflows/test.yml`)
-
-## Test Data Management
-
-### Fixture Creation
-
-When adding new test scenarios:
-
-1. **Create fixture directory** in `/tests/fixtures/`
-2. **Include minimal files** needed for the scenario
-3. **Update test files** to reference new fixture
-4. **Add cleanup** if creating temporary files
-
-### Mock Configuration
-
-```typescript
-// Example: Configure mock for specific test
-const mockGit = {
-  getRef: vi
-    .fn()
-    .mockRejectedValueOnce({ status: 404 }) // First call: tag doesn't exist
-    .mockResolvedValueOnce({}), // Second call: tag exists
-};
-
-const context = generateContext({ github: { rest: { git: mockGit } } });
-```
-
-## Testing Best Practices
-
-### 1. Test Isolation
-
-- Each test should be independent
-- Clear mocks in `beforeEach` or `afterEach`
-- Use fixture directories, not global state
-
-### 2. Descriptive Test Names
-
-```typescript
-// Good
-it('should skip floating tags for draft releases', ...)
-
-// Bad
-it('should handle draft', ...)
-```
-
-### 3. Coverage Prioritization
-
-- Business logic over implementation details
-- Error cases and edge conditions
-- Integration between modules
-
-### 4. Mock Verification
-
-- Verify mock calls with expected arguments
-- Test both success and error paths
-- Configure mock responses per test case
-
-## Debugging Tests
-
-### Common Issues
-
-#### Issue: Mock not called
-
-**Solution**: Check mock setup and function invocation order
-
-#### Issue: File path issues
-
-**Solution**: Verify workspace mocking and fixture paths
-
-#### Issue: Environment variable missing
-
-**Solution**: Check `setup.ts` and test-specific overrides
-
-### Debugging Tools
-
-```bash
-# Run with verbose output
-npx vitest run --reporter=verbose
-
-# Debug specific test
-npx vitest run -t "test name pattern"
-```
-
-## Continuous Integration
-
-### GitHub Actions Workflow (`/.github/workflows/test.yml`)
+**Workflow File**: `/.github/workflows/ci.yml`
 
 **Triggers**: Push to main, pull requests
 **Steps**:
@@ -408,7 +200,7 @@ npx vitest run -t "test name pattern"
 3. Install dependencies
 4. Run tests
 
-### Test Results
+**Test Results**:
 
 - Automatic run on all PRs
 - Required for merge to main
@@ -439,6 +231,42 @@ Run tests locally before committing.
 ### Step 5: Update Documentation
 
 Update this document if testing patterns change.
+
+## Quality Validation
+
+### Comprehensive Validation Script
+
+The repository includes a comprehensive quality validation script (`run-quality-checks.mjs`) that runs all quality checks in sequence:
+
+**File**: `/run-quality-checks.mjs`
+
+**What it runs**:
+1. **Runtime Preflight Check** (`scripts/runtime-preflight.mjs`): Validates Node.js and pnpm versions
+2. **Formatting Check**: `pnpm run check-format` using oxfmt
+3. **Linting**: `pnpm run lint` using oxlint
+4. **Type Checking**: `pnpm run typecheck` using TypeScript compiler
+5. **Tests**: `pnpm run test` using Vitest
+
+**Usage**:
+```bash
+pnpm run validate  # Runs all quality checks
+```
+
+### Preflight Runtime Validation
+
+**File**: `/scripts/runtime-preflight.mjs`
+
+Validates the development environment before running tests:
+- Node.js version compatibility (24+)
+- pnpm version compatibility
+- Required tool availability
+
+### GitHub Actions Integration
+
+Quality checks are automatically run in the CI workflow (`/.github/workflows/ci.yml`) on:
+- Push to main branch
+- Pull requests
+- Manual workflow dispatch
 
 ---
 
