@@ -480,6 +480,3 @@ uses: iShark5060/build-and-tag-action@v1
 ---
 
 **Next**: [Configuration Reference](configuration.md) for detailed input/output specifications.
-
-
-

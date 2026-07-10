@@ -169,4 +169,3 @@ Floating tags are updated when:
 ---
 
 **Next Steps**: Read the [Architecture](architecture/core-workflow.md) section to understand how the action works internally, or jump to [Usage Patterns](workflows/usage.md) for practical integration examples.
-

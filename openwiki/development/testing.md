@@ -117,8 +117,8 @@ Clear all mocked inputs between tests:
 ```typescript
 export function resetInputs() {
   Object.keys(process.env)
-    .filter(key => key.startsWith('INPUT_'))
-    .forEach(key => delete process.env[key]);
+    .filter((key) => key.startsWith('INPUT_'))
+    .forEach((key) => delete process.env[key]);
 }
 ```
 
@@ -241,6 +241,7 @@ The repository includes a comprehensive quality validation script (`run-quality-
 **File**: `/run-quality-checks.mjs`
 
 **What it runs**:
+
 1. **Runtime Preflight Check** (`scripts/runtime-preflight.mjs`): Validates Node.js and pnpm versions
 2. **Formatting Check**: `pnpm run check-format` using oxfmt
 3. **Linting**: `pnpm run lint` using oxlint
@@ -248,6 +249,7 @@ The repository includes a comprehensive quality validation script (`run-quality-
 5. **Tests**: `pnpm run test` using Vitest
 
 **Usage**:
+
 ```bash
 pnpm run validate  # Runs all quality checks
 ```
@@ -257,6 +259,7 @@ pnpm run validate  # Runs all quality checks
 **File**: `/scripts/runtime-preflight.mjs`
 
 Validates the development environment before running tests:
+
 - Node.js version compatibility (24+)
 - pnpm version compatibility
 - Required tool availability
@@ -264,6 +267,7 @@ Validates the development environment before running tests:
 ### GitHub Actions Integration
 
 Quality checks are automatically run in the CI workflow (`/.github/workflows/ci.yml`) on:
+
 - Push to main branch
 - Pull requests
 - Manual workflow dispatch

@@ -173,6 +173,7 @@ dist/
 ### Runtime Preflight Check (`scripts/runtime-preflight.mjs`)
 
 Validates environment before running quality checks:
+
 - Verifies Node.js version (24+)
 - Checks pnpm version compatibility
 - Ensures required tools are available
@@ -182,11 +183,12 @@ Validates environment before running quality checks:
 Comprehensive quality validation script that runs:
 
 1. **Formatting check** (`pnpm run check-format`)
-2. **Linting** (`pnpm run lint`) 
+2. **Linting** (`pnpm run lint`)
 3. **Type checking** (`pnpm run typecheck`)
 4. **Tests** (`pnpm run test`)
 
 **Usage**:
+
 ```bash
 pnpm run validate  # Runs all quality checks
 ```
@@ -272,6 +274,7 @@ runs:
 ```
 
 **Action.yml Configuration**:
+
 ```yaml
 runs:
   using: node24

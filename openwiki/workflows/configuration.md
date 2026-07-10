@@ -480,6 +480,3 @@ const commitSha = await buildAndTagAction(context);
 ---
 
 **Related**: [Usage Patterns](usage.md) for practical examples, [Business Rules](../architecture/business-rules.md) for logic details.
-
-
-
