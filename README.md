@@ -1,8 +1,12 @@
 # Build and Tag
 
-Publish JavaScript GitHub Actions to release and floating version tags.
-
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/iShark5060/actions-build-and-tag/actions/workflows/ci.yml/badge.svg)](https://github.com/iShark5060/actions-build-and-tag/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/Node-%3E%3D24-339933?logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-7.x-3178C6?logo=typescript&logoColor=white)
+[![Cursor](https://img.shields.io/badge/Cursor-IDE-141414?logo=cursor&logoColor=white)](https://cursor.com)
+
+Publish JavaScript GitHub Actions to release and floating version tags.
 
 > **Fork notice:** Maintained fork of [JasonEtco/build-and-tag-action](https://github.com/JasonEtco/build-and-tag-action) by Jason Etco (MIT License).
 
@@ -96,6 +100,24 @@ Grant **`contents: write`** to `GITHUB_TOKEN` so tag updates can succeed.
 - Files are uploaded as base64 blobs so binary assets are not corrupted.
 - Floating major/minor tags are skipped for draft and pre-release releases.
 - `GITHUB_TOKEN` is required via `env` (standard `github.token`).
+
+## Requirements
+
+- Node.js 24+
+- pnpm 11+
+
+## Scripts
+
+| Script              | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| `pnpm run validate` | Format check, lint, typecheck, and tests.        |
+| `pnpm run build`    | Bundle `src/` into `dist/index.js` (CJS).        |
+
+## Development
+
+Agent-oriented docs: [openwiki/quickstart.md](openwiki/quickstart.md).
+
+Engineering standards: AppBase `docs/org-standards/` with [personal-repos.md](https://github.com/Dark-Avian-Labs/AppBase/blob/main/docs/org-standards/personal-repos.md) (GitHub-hosted runners).
 
 ## License
 

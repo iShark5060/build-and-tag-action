@@ -39,6 +39,15 @@ pnpm run deps
 pnpm install
 ```
 
+## Engineering standards
+
+Follow AppBase `docs/org-standards/` with personal-repo overrides (`personal-repos.md`):
+
+- Runners: `ubuntu-latest` / `windows-latest`
+- Checkout: `actions/checkout@v7`
+- Node setup: `actions/setup-node@v7`
+- Quality gate: `pnpm run validate`
+
 ## OpenWiki
 
 This repository has documentation located in the /openwiki directory.
