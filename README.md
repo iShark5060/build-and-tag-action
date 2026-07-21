@@ -108,10 +108,10 @@ Grant **`contents: write`** to `GITHUB_TOKEN` so tag updates can succeed.
 
 ## Scripts
 
-| Script              | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `pnpm run validate` | Format check, lint, typecheck, and tests.        |
-| `pnpm run build`    | Bundle `src/` into `dist/index.js` (CJS).        |
+| Script              | Description                               |
+| ------------------- | ----------------------------------------- |
+| `pnpm run validate` | Format check, lint, typecheck, and tests. |
+| `pnpm run build`    | Bundle `src/` into `dist/index.js` (CJS). |
 
 ## Development
 
